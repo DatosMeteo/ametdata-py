@@ -1,22 +1,100 @@
-def get_relativedelta():
-    try:
-        from dateutil.relativedelta import relativedelta
-        return relativedelta
-    except ImportError:
-        raise ImportError("Falta el paquete 'python-dateutil'. Instálalo con 'pip install python-dateutil'.")
+from __future__ import annotations
+
 import asyncio
 import io
+import logging
 import tarfile
+from typing import Iterable
 
 import httpx
 
+
+logger = logging.getLogger(__name__)
 
 MAX_CICLOS = 3
 
 
 class AemetError(Exception):
-    """Excepción personalizada para errores de AEMET."""
+    """Excepcion personalizada para errores de AEMET."""
     pass
+
+
+def get_relativedelta():
+    try:
+        from dateutil.relativedelta import relativedelta
+        return relativedelta
+    except ImportError:
+        raise ImportError(
+            "Falta el paquete 'python-dateutil'. Instalalo con 'pip install python-dateutil'."
+        )
+
+
+def validar_api_keys(api_keys: Iterable[str]) -> list[str]:
+    """Valida y convierte api_keys a lista no vacia.
+
+    Args:
+        api_keys: Iterable de claves API.
+
+    Returns:
+        Lista de claves API.
+
+    Raises:
+        ValueError: Si la lista esta vacia.
+    """
+    keys = list(api_keys)
+    if not keys:
+        raise ValueError("Se requiere al menos una API key en 'api_keys'.")
+    return keys
+
+
+def procesar_lista_ids(valor, nombre_param: str = "idema") -> list[str]:
+    """Convierte un str o iterable de str en lista.
+
+    Args:
+        valor: str o iterable de str.
+        nombre_param: Nombre del parametro para mensajes de error.
+
+    Returns:
+        Lista de identificadores.
+
+    Raises:
+        ValueError: Si el tipo no es valido o la lista esta vacia.
+    """
+    if isinstance(valor, str):
+        resultado = [valor]
+    elif isinstance(valor, (list, tuple)):
+        resultado = list(valor)
+    else:
+        raise ValueError(f"El parametro '{nombre_param}' debe ser str o iterable de str.")
+    if not resultado:
+        raise ValueError(f"El parametro '{nombre_param}' es obligatorio.")
+    return resultado
+
+
+def normalizar_datos(datos) -> list:
+    """Normaliza el resultado de AEMET a lista.
+
+    Args:
+        datos: Respuesta de la URL de datos de AEMET (dict, list o str JSON).
+
+    Returns:
+        Lista de registros.
+    """
+    import json as _json
+
+    if isinstance(datos, list):
+        return datos
+    if isinstance(datos, dict):
+        return [datos]
+    try:
+        parsed = _json.loads(datos)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            return [parsed]
+        return [{"contenido": str(datos)}]
+    except Exception:
+        return [{"contenido": str(datos)}]
 
 
 async def fetch_json_url(url: str, descripcion: str | None = None):
@@ -30,180 +108,272 @@ async def fetch_json_url(url: str, descripcion: str | None = None):
         AemetError: Si la descarga falla o el contenido no es JSON.
     """
     contexto = f" ({descripcion})" if descripcion else ""
-    print(f"📥 Descargando JSON{contexto} desde: {url}")
+    logger.debug("Descargando JSON%s desde: %s", contexto, url)
 
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, timeout=30)
             resp.raise_for_status()
     except httpx.HTTPError as exc:
-        raise AemetError(f"Error descargando JSON{contexto}: {exc}")
-    
-    
+        raise AemetError(f"Error descargando JSON{contexto}: {exc}") from exc
+
     return resp.json()
 
 
+async def fetch_bytes_url(url: str, descripcion: str | None = None) -> bytes:
+    """Descarga contenido binario desde una URL.
+
+    Args:
+        url: URL del recurso.
+        descripcion: Texto opcional para contextualizar errores.
+
+    Returns:
+        Contenido binario de la respuesta.
+
+    Raises:
+        AemetError: Si la descarga falla.
+    """
+    contexto = f" ({descripcion})" if descripcion else ""
+    logger.debug("Descargando contenido binario%s desde: %s", contexto, url)
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=60)
+            resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise AemetError(f"Error descargando contenido{contexto}: {exc}") from exc
+
+    return resp.content
 
 
-async def fetch_con_reintentos_endpoint_aemet(url_template: str, tipo: str, api_keys: list[str]):
-    print("Accediendo Base datos AEMET")
+async def fetch_con_reintentos_endpoint_aemet(
+    url_template: str,
+    tipo: str,
+    api_keys: list[str],
+) -> dict:
+    """Realiza una peticion a AEMET con rotacion de claves API y reintentos.
+
+    La logica aplica hasta MAX_CICLOS vueltas sobre todas las api_keys.
+    En cada intento espera un backoff exponencial antes de probar la siguiente clave.
+
+    Args:
+        url_template: URL con {apiKey} como marcador de posicion para la clave.
+        tipo: Identificador de la operacion para logs.
+        api_keys: Lista de claves API de AEMET.
+
+    Returns:
+        Respuesta JSON como diccionario.
+
+    Raises:
+        AemetError: Si ninguna clave funciona tras MAX_CICLOS ciclos.
+    """
+    logger.info("Iniciando peticion a AEMET [%s]", tipo)
     ciclos_completados = 0
 
     while ciclos_completados < MAX_CICLOS:
-        print(f"🔄 Ciclo {ciclos_completados + 1} de {MAX_CICLOS}")
+        logger.debug("Ciclo %d de %d [%s]", ciclos_completados + 1, MAX_CICLOS, tipo)
 
         for key_index, api_key in enumerate(api_keys):
             endpoint = url_template.replace("{apiKey}", api_key)
-            print(f"Probando endpoint: {endpoint}")
+            logger.debug("Probando clave %d para [%s]", key_index + 1, tipo)
 
-            async with httpx.AsyncClient() as client:
-                try:
-                    resp = await client.get(endpoint, timeout=10)
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(endpoint, timeout=15)
                     resp.raise_for_status()
 
-                    if "application/json" not in resp.headers.get("Content-Type", ""):
-                        print(f"❗ Respuesta inesperada (no JSON) con la clave {key_index + 1}: {resp.text[:200]}")
-                        continue
+                content_type = resp.headers.get("Content-Type", "")
+                if "application/json" not in content_type:
+                    logger.warning(
+                        "Respuesta inesperada (no JSON) con clave %d [%s]: %s",
+                        key_index + 1, tipo, resp.text[:200],
+                    )
+                    continue
 
-                    try:
-                        data = resp.json()
-                    except Exception as decode_error:
-                        print(f"❗ Error decodificando JSON con la clave {key_index + 1}. Primeros 200 chars: {resp.text[:200]}")
-                        raise decode_error
+                try:
+                    data = resp.json()
+                except Exception as decode_error:
+                    logger.error(
+                        "Error decodificando JSON con clave %d [%s]: %s",
+                        key_index + 1, tipo, resp.text[:200],
+                    )
+                    raise decode_error
 
-                    print(f"✔️ Datos obtenidos con la clave {key_index + 1}.")
-                    return data
+                logger.info("Datos obtenidos con clave %d [%s]", key_index + 1, tipo)
+                return data
 
-                except httpx.HTTPStatusError as exc:
-                    print(f"❗ Falló con la clave {key_index + 1} ({tipo}): {exc.response.status_code}")
-                except Exception as e:
-                    print(f"❗ Error con la clave {key_index + 1} ({tipo}): {e}")
+            except httpx.HTTPStatusError as exc:
+                logger.warning(
+                    "HTTP %d con clave %d [%s]",
+                    exc.response.status_code, key_index + 1, tipo,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Error con clave %d [%s]: %s",
+                    key_index + 1, tipo, exc,
+                )
 
-                espera = min(1 * (2 ** key_index), 30)
-                print(f"⏳ Esperando {espera} segundos antes de probar la siguiente clave...")
-                await asyncio.sleep(espera)
+            espera = min(1 * (2 ** key_index), 30)
+            logger.debug(
+                "Esperando %ds antes de probar siguiente clave [%s]", espera, tipo
+            )
+            await asyncio.sleep(espera)
 
         ciclos_completados += 1
-        print(f"➡️ Terminó ciclo {ciclos_completados}.")
+        logger.info("Fin de ciclo %d [%s]", ciclos_completados, tipo)
 
-    raise AemetError(f"No se pudo realizar la solicitud tras {MAX_CICLOS} ciclos.")
+    raise AemetError(
+        f"No se pudo realizar la solicitud '{tipo}' tras {MAX_CICLOS} ciclos."
+    )
+
+
+async def fetch_aemet_datos(
+    endpoint_template: str,
+    tipo: str,
+    api_keys: list[str],
+    descripcion: str | None = None,
+) -> list:
+    """Patron completo de descarga AEMET: primera llamada + segunda llamada a datos.
+
+    Obtiene la URL de datos de la primera respuesta de AEMET y descarga el JSON
+    de esa URL, devolviendo los registros normalizados como lista.
+
+    Args:
+        endpoint_template: URL con {apiKey} como marcador.
+        tipo: Identificador para logs.
+        api_keys: Lista de claves API.
+        descripcion: Texto opcional para logs de la segunda descarga.
+
+    Returns:
+        Lista de registros.
+
+    Raises:
+        AemetError: Si hay error en cualquier paso.
+    """
+    response = await fetch_con_reintentos_endpoint_aemet(endpoint_template, tipo, api_keys)
+
+    if response.get("estado") != 200:
+        raise AemetError(
+            f"Error en AEMET [{tipo}]: {response.get('descripcion', 'Error desconocido')} "
+            f"(estado: {response.get('estado')})"
+        )
+
+    datos_url = response.get("datos")
+    if not datos_url:
+        raise AemetError(f"No se encontro URL de descarga en la respuesta de AEMET [{tipo}]")
+
+    logger.info("Descargando datos desde URL de AEMET [%s]", tipo)
+    datos = await fetch_json_url(datos_url, descripcion or tipo)
+    logger.info("Datos descargados correctamente [%s]", tipo)
+
+    return normalizar_datos(datos)
 
 
 async def descargar_archivo_tar_gz(url: str) -> dict:
     """Descarga un archivo desde una URL y extrae su contenido.
-    
-    Soporta formatos: tar.gz, tar.bz2, zip y arquivos simples.
-    
+
+    Soporta formatos: tar.gz, tar.bz2, zip y archivos simples.
+
     Args:
         url: URL del archivo.
-        
+
     Returns:
-        dict: Diccionario con los archivos extraídos {nombre_archivo: contenido}.
-        
+        Diccionario con los archivos extraidos {nombre_archivo: contenido}.
+
     Raises:
         AemetError: Si hay error descargando o extrayendo el archivo.
     """
     import zipfile
-    
-    print(f"📥 Descargando archivo desde: {url}")
-    
+
+    logger.debug("Descargando archivo desde: %s", url)
+
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=30)
+            resp = await client.get(url, timeout=60)
             resp.raise_for_status()
-            
-            print(f"✔️ Archivo descargado ({len(resp.content)} bytes)")
-            
-            # Detectar el formato por magic bytes
-            content = resp.content
-            magic_bytes = content[:4]
-            
-            files_content = {}
-            
-            # Intentar como tar.gz
-            if magic_bytes[:2] == b'\x1f\x8b':  # gzip magic
-                print("📦 Formato detectado: tar.gz")
-                try:
-                    tar_bytes = io.BytesIO(content)
-                    with tarfile.open(fileobj=tar_bytes, mode='r:gz') as tar:
-                        for member in tar.getmembers():
-                            if member.isfile():
-                                f = tar.extractfile(member)
-                                if f:
-                                    try:
-                                        files_content[member.name] = f.read().decode('utf-8')
-                                    except UnicodeDecodeError:
-                                        files_content[member.name] = f.read().hex()
-                                    print(f"📄 Extraído: {member.name}")
-                        return files_content
-                except Exception as e:
-                    print(f"⚠️ Fallo con tar.gz: {e}")
-            
-            # Intentar como tar.bz2
-            elif magic_bytes[:3] == b'BZh':  # bzip2 magic
-                print("📦 Formato detectado: tar.bz2")
-                try:
-                    tar_bytes = io.BytesIO(content)
-                    with tarfile.open(fileobj=tar_bytes, mode='r:bz2') as tar:
-                        for member in tar.getmembers():
-                            if member.isfile():
-                                f = tar.extractfile(member)
-                                if f:
-                                    try:
-                                        files_content[member.name] = f.read().decode('utf-8')
-                                    except UnicodeDecodeError:
-                                        files_content[member.name] = f.read().hex()
-                                    print(f"📄 Extraído: {member.name}")
-                        return files_content
-                except Exception as e:
-                    print(f"⚠️ Fallo con tar.bz2: {e}")
-            
-            # Intentar como ZIP
-            elif magic_bytes[:2] == b'PK':  # ZIP magic
-                print("📦 Formato detectado: ZIP")
-                try:
-                    zip_bytes = io.BytesIO(content)
-                    with zipfile.ZipFile(zip_bytes, 'r') as zip_ref:
-                        for info in zip_ref.infolist():
-                            if not info.is_dir():
-                                try:
-                                    files_content[info.filename] = zip_ref.read(info).decode('utf-8')
-                                except UnicodeDecodeError:
-                                    files_content[info.filename] = zip_ref.read(info).hex()
-                                print(f"📄 Extraído: {info.filename}")
-                        return files_content
-                except Exception as e:
-                    print(f"⚠️ Fallo con ZIP: {e}")
-            
-            # Si no es ninguno de los anteriores, intentar como tar simple
-            elif magic_bytes[:6] == b'ustar\x00' or content[:256].find(b'ustar') != -1:
-                print("📦 Formato detectado: tar")
-                try:
-                    tar_bytes = io.BytesIO(content)
-                    with tarfile.open(fileobj=tar_bytes, mode='r') as tar:
-                        for member in tar.getmembers():
-                            if member.isfile():
-                                f = tar.extractfile(member)
-                                if f:
-                                    try:
-                                        files_content[member.name] = f.read().decode('utf-8')
-                                    except UnicodeDecodeError:
-                                        files_content[member.name] = f.read().hex()
-                                    print(f"📄 Extraído: {member.name}")
-                        return files_content
-                except Exception as e:
-                    print(f"⚠️ Fallo con tar: {e}")
-            
-            # Si no es un archivo comprimido, devolverlo como un archivo
-            print(f"📦 Formato desconocido, se devuelve como contenido directo")
-            filename = url.split('/')[-1] or "descargado"
+
+        logger.debug("Archivo descargado (%d bytes)", len(resp.content))
+
+        content = resp.content
+        magic_bytes = content[:4]
+        files_content: dict[str, str] = {}
+
+        def _leer_miembro(data: bytes) -> str:
             try:
-                files_content[filename] = content.decode('utf-8')
+                return data.decode("utf-8")
             except UnicodeDecodeError:
-                files_content[filename] = content.hex()
-            print(f"📄 Contenido: {filename}")
-            return files_content
-                    
+                return data.hex()
+
+        # tar.gz
+        if magic_bytes[:2] == b"\x1f\x8b":
+            logger.debug("Formato detectado: tar.gz")
+            try:
+                tar_bytes = io.BytesIO(content)
+                with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
+                    for member in tar.getmembers():
+                        if member.isfile():
+                            f = tar.extractfile(member)
+                            if f:
+                                files_content[member.name] = _leer_miembro(f.read())
+                                logger.debug("Extraido: %s", member.name)
+                return files_content
+            except Exception as exc:
+                logger.warning("Fallo con tar.gz: %s", exc)
+
+        # tar.bz2
+        elif magic_bytes[:3] == b"BZh":
+            logger.debug("Formato detectado: tar.bz2")
+            try:
+                tar_bytes = io.BytesIO(content)
+                with tarfile.open(fileobj=tar_bytes, mode="r:bz2") as tar:
+                    for member in tar.getmembers():
+                        if member.isfile():
+                            f = tar.extractfile(member)
+                            if f:
+                                files_content[member.name] = _leer_miembro(f.read())
+                                logger.debug("Extraido: %s", member.name)
+                return files_content
+            except Exception as exc:
+                logger.warning("Fallo con tar.bz2: %s", exc)
+
+        # ZIP
+        elif magic_bytes[:2] == b"PK":
+            logger.debug("Formato detectado: ZIP")
+            try:
+                zip_bytes = io.BytesIO(content)
+                with zipfile.ZipFile(zip_bytes, "r") as zip_ref:
+                    for info in zip_ref.infolist():
+                        if not info.is_dir():
+                            files_content[info.filename] = _leer_miembro(
+                                zip_ref.read(info)
+                            )
+                            logger.debug("Extraido: %s", info.filename)
+                return files_content
+            except Exception as exc:
+                logger.warning("Fallo con ZIP: %s", exc)
+
+        # tar simple
+        elif magic_bytes[:6] == b"ustar\x00" or content[:256].find(b"ustar") != -1:
+            logger.debug("Formato detectado: tar")
+            try:
+                tar_bytes = io.BytesIO(content)
+                with tarfile.open(fileobj=tar_bytes, mode="r") as tar:
+                    for member in tar.getmembers():
+                        if member.isfile():
+                            f = tar.extractfile(member)
+                            if f:
+                                files_content[member.name] = _leer_miembro(f.read())
+                                logger.debug("Extraido: %s", member.name)
+                return files_content
+            except Exception as exc:
+                logger.warning("Fallo con tar: %s", exc)
+
+        # Contenido directo
+        logger.debug("Formato desconocido, se devuelve como contenido directo")
+        filename = url.split("/")[-1] or "descargado"
+        files_content[filename] = _leer_miembro(content)
+        return files_content
+
     except httpx.HTTPError as http_error:
-        raise AemetError(f"Error descargando archivo: {http_error}")
+        raise AemetError(f"Error descargando archivo: {http_error}") from http_error
 
