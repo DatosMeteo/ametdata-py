@@ -20,7 +20,7 @@ README.md
 build_publish_pypi.txt
 
 # Archivos de notebook
-*.ipynb
+
 
 # Logs
 *.log
