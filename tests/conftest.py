@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+# Disable the AEMET rate limiter in tests (it only matters for live API calls)
+os.environ.setdefault("AEMET_REQUEST_INTERVAL", "0")
 
 
 def make_mock_client(side_effects: list):

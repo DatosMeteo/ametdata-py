@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
+import time
 import tarfile
 from typing import Iterable
 
@@ -11,12 +13,29 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-MAX_CICLOS = 3
+MAX_CICLOS = 5  # more retries to survive transient disconnects
+# AEMET allows ~150 requests per 5-minute window (30 req/min).
+# Enforcing a 2.5 s minimum interval keeps us safely under the limit.
+# Set env var AEMET_REQUEST_INTERVAL=0 to disable (e.g. in tests).
+_last_request_time: float = 0.0
 
 
 class AemetError(Exception):
     """Excepcion personalizada para errores de AEMET."""
     pass
+
+
+async def _rate_limit() -> None:
+    """Enforces a minimum interval between AEMET API requests."""
+    global _last_request_time
+    interval = float(os.environ.get("AEMET_REQUEST_INTERVAL", "2.5"))
+    if interval <= 0:
+        return
+    elapsed = time.monotonic() - _last_request_time
+    if elapsed < interval:
+        await asyncio.sleep(interval - elapsed)
+    _last_request_time = time.monotonic()
+
 
 
 def get_relativedelta():
@@ -107,17 +126,65 @@ async def fetch_json_url(url: str, descripcion: str | None = None):
     Raises:
         AemetError: Si la descarga falla o el contenido no es JSON.
     """
+    import json as _json
+
     contexto = f" ({descripcion})" if descripcion else ""
     logger.debug("Descargando JSON%s desde: %s", contexto, url)
 
-    try:
-        async with httpx.AsyncClient() as client:
+    async def _via_httpx():
+        _LIMITS = httpx.Limits(max_keepalive_connections=0, max_connections=5)
+        async with httpx.AsyncClient(limits=_LIMITS) as client:
             resp = await client.get(url, timeout=30)
             resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise AemetError(f"Error descargando JSON{contexto}: {exc}") from exc
+        try:
+            return resp.json()
+        except Exception:
+            try:
+                return _json.loads(resp.content.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return _json.loads(resp.content.decode("latin-1"))
 
-    return resp.json()
+    async def _via_urllib():
+        import urllib.request as _urllib
+        def _download() -> bytes:
+            req = _urllib.Request(url, headers={"User-Agent": "aemetdata-py/0.1"})
+            with _urllib.urlopen(req, timeout=30) as r:
+                return r.read()
+        content = await asyncio.to_thread(_download)
+        try:
+            return _json.loads(content.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return _json.loads(content.decode("latin-1"))
+
+    last_exc: Exception | None = None
+
+    for attempt in range(3):
+        try:
+            return await _via_httpx()
+        except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError) as exc:
+            logger.warning(
+                "httpx disconnect intento %d para JSON%s, reintentando con urllib: %s",
+                attempt + 1, contexto, exc,
+            )
+            try:
+                return await _via_urllib()
+            except Exception as exc2:
+                last_exc = exc2
+                logger.warning("urllib también falló intento %d%s: %s", attempt + 1, contexto, exc2)
+                if attempt < 2:
+                    await asyncio.sleep(1 + attempt)
+        except (ValueError, _json.JSONDecodeError) as exc:
+            # Empty or non-JSON response body from a successful HTTP request
+            last_exc = exc
+            raise AemetError(f"Respuesta no es JSON válido{contexto}: {exc}") from exc
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(1 + attempt)
+            else:
+                raise AemetError(f"Error descargando JSON{contexto}: {exc}") from exc
+
+    raise AemetError(f"Error descargando JSON{contexto}: {last_exc}") from last_exc
 
 
 async def fetch_bytes_url(url: str, descripcion: str | None = None) -> bytes:
@@ -133,17 +200,48 @@ async def fetch_bytes_url(url: str, descripcion: str | None = None) -> bytes:
     Raises:
         AemetError: Si la descarga falla.
     """
+    import urllib.request as _urllib
+
     contexto = f" ({descripcion})" if descripcion else ""
     logger.debug("Descargando contenido binario%s desde: %s", contexto, url)
 
-    try:
-        async with httpx.AsyncClient() as client:
+    async def _via_httpx() -> bytes:
+        _LIMITS = httpx.Limits(max_keepalive_connections=0, max_connections=5)
+        async with httpx.AsyncClient(limits=_LIMITS) as client:
             resp = await client.get(url, timeout=60)
             resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise AemetError(f"Error descargando contenido{contexto}: {exc}") from exc
+            return resp.content
 
-    return resp.content
+    async def _via_urllib() -> bytes:
+        def _download() -> bytes:
+            req = _urllib.Request(url, headers={"User-Agent": "aemetdata-py/0.1"})
+            with _urllib.urlopen(req, timeout=60) as r:
+                return r.read()
+        return await asyncio.to_thread(_download)
+
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            return await _via_httpx()
+        except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError) as exc:
+            logger.warning(
+                "httpx disconnect intento %d para binario%s, reintentando con urllib: %s",
+                attempt + 1, contexto, exc,
+            )
+            try:
+                return await _via_urllib()
+            except Exception as exc2:
+                last_exc = exc2
+                if attempt < 2:
+                    await asyncio.sleep(1 + attempt)
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(1 + attempt)
+            else:
+                raise AemetError(f"Error descargando contenido{contexto}: {exc}") from exc
+
+    raise AemetError(f"Error descargando contenido{contexto}: {last_exc}") from last_exc
 
 
 async def fetch_con_reintentos_endpoint_aemet(
@@ -177,27 +275,48 @@ async def fetch_con_reintentos_endpoint_aemet(
             endpoint = url_template.replace("{apiKey}", api_key)
             logger.debug("Probando clave %d para [%s]", key_index + 1, tipo)
 
-            try:
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(endpoint, timeout=15)
+            async def _endpoint_via_httpx(url: str) -> dict:
+                import json as _json
+                _LIMITS = httpx.Limits(max_keepalive_connections=0, max_connections=5)
+                async with httpx.AsyncClient(limits=_LIMITS) as client:
+                    resp = await client.get(url, timeout=15)
                     resp.raise_for_status()
-
                 content_type = resp.headers.get("Content-Type", "")
                 if "application/json" not in content_type:
-                    logger.warning(
-                        "Respuesta inesperada (no JSON) con clave %d [%s]: %s",
-                        key_index + 1, tipo, resp.text[:200],
-                    )
-                    continue
-
+                    raise AemetError(f"Respuesta no JSON: {content_type!r}")
                 try:
-                    data = resp.json()
-                except Exception as decode_error:
-                    logger.error(
-                        "Error decodificando JSON con clave %d [%s]: %s",
-                        key_index + 1, tipo, resp.text[:200],
+                    return resp.json()
+                except Exception:
+                    try:
+                        return _json.loads(resp.content.decode("utf-8"))
+                    except (UnicodeDecodeError, ValueError):
+                        return _json.loads(resp.content.decode("latin-1"))
+
+            async def _endpoint_via_urllib(url: str) -> dict:
+                import json as _json, urllib.request as _urllib
+                def _fetch() -> bytes:
+                    req = _urllib.Request(url, headers={"User-Agent": "aemetdata-py/0.1"})
+                    with _urllib.urlopen(req, timeout=15) as r:
+                        return r.read()
+                content = await asyncio.to_thread(_fetch)
+                try:
+                    data = _json.loads(content.decode("utf-8"))
+                except (UnicodeDecodeError, ValueError):
+                    data = _json.loads(content.decode("latin-1"))
+                if not isinstance(data, dict):
+                    raise AemetError(f"Respuesta inesperada (no dict): {type(data)}")
+                return data
+
+            try:
+                await _rate_limit()
+                try:
+                    data = await _endpoint_via_httpx(endpoint)
+                except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError) as exc:
+                    logger.warning(
+                        "httpx disconnect clave %d [%s], reintentando con urllib: %s",
+                        key_index + 1, tipo, exc,
                     )
-                    raise decode_error
+                    data = await _endpoint_via_urllib(endpoint)
 
                 logger.info("Datos obtenidos con clave %d [%s]", key_index + 1, tipo)
                 return data
@@ -213,7 +332,7 @@ async def fetch_con_reintentos_endpoint_aemet(
                     key_index + 1, tipo, exc,
                 )
 
-            espera = min(1 * (2 ** key_index), 30)
+            espera = min(5 * (2 ** key_index), 60)
             logger.debug(
                 "Esperando %ds antes de probar siguiente clave [%s]", espera, tipo
             )
@@ -287,14 +406,28 @@ async def descargar_archivo_tar_gz(url: str) -> dict:
 
     logger.debug("Descargando archivo desde: %s", url)
 
-    try:
-        async with httpx.AsyncClient() as client:
+    import urllib.request as _urllib
+
+    async def _descarga_via_httpx() -> bytes:
+        _LIMITS = httpx.Limits(max_keepalive_connections=0, max_connections=5)
+        async with httpx.AsyncClient(limits=_LIMITS) as client:
             resp = await client.get(url, timeout=60)
             resp.raise_for_status()
+            return resp.content
 
-        logger.debug("Archivo descargado (%d bytes)", len(resp.content))
+    async def _descarga_via_urllib() -> bytes:
+        def _download() -> bytes:
+            req = _urllib.Request(url, headers={"User-Agent": "aemetdata-py/0.1"})
+            with _urllib.urlopen(req, timeout=60) as r:
+                return r.read()
+        return await asyncio.to_thread(_download)
 
-        content = resp.content
+    try:
+        try:
+            content = await _descarga_via_httpx()
+        except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError) as exc:
+            logger.warning("httpx disconnect para archivo, reintentando con urllib: %s", exc)
+            content = await _descarga_via_urllib()
         magic_bytes = content[:4]
         files_content: dict[str, str] = {}
 
@@ -376,4 +509,6 @@ async def descargar_archivo_tar_gz(url: str) -> dict:
 
     except httpx.HTTPError as http_error:
         raise AemetError(f"Error descargando archivo: {http_error}") from http_error
+    except Exception as exc:
+        raise AemetError(f"Error descargando archivo: {exc}") from exc
 
