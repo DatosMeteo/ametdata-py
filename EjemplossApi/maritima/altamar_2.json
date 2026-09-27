@@ -1,0 +1,94 @@
+[
+  {
+    "origen": {
+      "productor": "Agencia Estatal de Meteorología - AEMET - Gobierno de España",
+      "web": "http://www.aemet.es",
+      "language": "es",
+      "copyright": "© AEMET. Autorizado el uso de la información y su reproducción citando a AEMET como autora de la misma.",
+      "notaLegal": "http://www.aemet.es/es/nota_legal",
+      "elaborado": "2026-06-30T08:00:00",
+      "inicio": "2026-06-30T08:00:00",
+      "fin": "2026-07-01T08:00:00"
+    },
+    "situacion": {
+      "inicio": "2026-06-30T08:00:00",
+      "fin": "2026-07-01T08:00:00",
+      "texto": "Formación de una baja de 1012 en Liguria. Altas presiones de 1030 en Azores que se extienden por todo el Mediterráneo Occidental, con pocos cambios.",
+      "id": "S905",
+      "nombre": "Situación general del Mediterráneo"
+    },
+    "prediccion": {
+      "inicio": "2026-06-30T08:00:00",
+      "fin": "2026-07-01T08:00:00",
+      "zona": [
+        {
+          "texto": "E o SE 3 a 5, arreciando a 6 en el oeste la tarde. Marejadilla o marejada. Localmente regular o mala por bruma o niebla.",
+          "id": 9115,
+          "nombre": "Estrecho"
+        },
+        {
+          "texto": "E 2 a 4 localmente variable. Rizada a marejadilla. Regular a buena.",
+          "id": 9201,
+          "nombre": "Alborán"
+        },
+        {
+          "texto": "NE 3 a 4. Marejadilla a marejada. Regular a buena.",
+          "id": 9202,
+          "nombre": "Palos"
+        },
+        {
+          "texto": "E y NE 3 a 4 localmente variable 2 a 3 en el este. Marejadilla. Regular a buena.",
+          "id": 9203,
+          "nombre": "Argelia"
+        },
+        {
+          "texto": "N y NE 3 a 5 amainando a SE 2 a 3 en el oeste. Marejadilla a marejada.",
+          "id": 9204,
+          "nombre": "Cabrera"
+        },
+        {
+          "texto": "Variable 2 a 4 arreciando a S y SW 3 a 5 por la tarde y rolando componente N de madrugada. Marejadilla a marejada.",
+          "id": 9205,
+          "nombre": "Baleares"
+        },
+        {
+          "texto": "Componente N 3 a 5, amainando a variable 2 a 4 por la tarde y arreciando a NW 5 a 7 en el nordeste de madrugada. Marejadilla a fuerte marejada.",
+          "id": 9206,
+          "nombre": "Menorca"
+        },
+        {
+          "texto": "W y NW 3 a 5 arreciando a NW 6 a 7 por la noche. Rachas. Marejada a fuerte marejada aumentando a gruesa en el sur.",
+          "id": 9207,
+          "nombre": "León"
+        },
+        {
+          "texto": " Oeste de Provenza: NW 3 a 5 arreciando a 5 a 7 de madrugada. Rachas. Marejada a fuerte marejada.  Resto de Provenza: variable 2 a 4. Rizada a marejadilla.",
+          "id": 9208,
+          "nombre": "Provenza"
+        },
+        {
+          "texto": "W y SW 2 a 4 localmente variable. Rizada a marejadilla.",
+          "id": 9209,
+          "nombre": "Liguria"
+        },
+        {
+          "texto": "Variable 1 a 3 tendiendo a componente W 2 a 4. Rizada a marejadilla.",
+          "id": 9210,
+          "nombre": "Córcega"
+        },
+        {
+          "texto": "NW 4 a 6 localmente variable 2 a 3 en el este, arreciando a 7 en el extremo noroeste. Marejadilla a marejada temporalmente fuerte marejada en el noroeste.",
+          "id": 9211,
+          "nombre": "Cerdeña"
+        },
+        {
+          "texto": "W y NW 3 a 4. Marejadilla a marejada. Regular a buena.",
+          "id": 9212,
+          "nombre": "Annaba"
+        }
+      ]
+    },
+    "id": "FQMQ42",
+    "nombre": "Zonas del Mediterráneo"
+  }
+]

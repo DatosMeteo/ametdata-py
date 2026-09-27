@@ -1,0 +1,181 @@
+[
+  {
+    "origen": {
+      "productor": "Agencia Estatal de Meteorología - AEMET. Gobierno de España",
+      "web": "http://www.aemet.es",
+      "language": "es",
+      "copyright": "© AEMET. Autorizado el uso de la información y su reproducción citando a AEMET como autora de la misma.",
+      "notaLegal": "http://www.aemet.es/es/nota_legal"
+    },
+    "elaborado": "2026-06-30T08:50:20",
+    "nombre": "Raco de l'Albir",
+    "localidad": 3011,
+    "prediccion": {
+      "dia": [
+        {
+          "estadoCielo": {
+            "value": "",
+            "f1": 100,
+            "descripcion1": "despejado",
+            "f2": 100,
+            "descripcion2": "despejado"
+          },
+          "viento": {
+            "value": "",
+            "f1": 220,
+            "descripcion1": "moderado",
+            "f2": 210,
+            "descripcion2": "flojo"
+          },
+          "oleaje": {
+            "value": "",
+            "f1": 310,
+            "descripcion1": "débil",
+            "f2": 310,
+            "descripcion2": "débil"
+          },
+          "tMaxima": {
+            "value": "",
+            "valor1": 32
+          },
+          "sTermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tAgua": {
+            "value": "",
+            "valor1": 27
+          },
+          "uvMax": {
+            "value": "",
+            "valor1": 9
+          },
+          "fecha": 20260630,
+          "tmaxima": {
+            "value": "",
+            "valor1": 32
+          },
+          "stermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tagua": {
+            "value": "",
+            "valor1": 27
+          }
+        },
+        {
+          "estadoCielo": {
+            "value": "",
+            "f1": 100,
+            "descripcion1": "despejado",
+            "f2": 100,
+            "descripcion2": "despejado"
+          },
+          "viento": {
+            "value": "",
+            "f1": 210,
+            "descripcion1": "flojo",
+            "f2": 210,
+            "descripcion2": "flojo"
+          },
+          "oleaje": {
+            "value": "",
+            "f1": 310,
+            "descripcion1": "débil",
+            "f2": 310,
+            "descripcion2": "débil"
+          },
+          "tMaxima": {
+            "value": "",
+            "valor1": 31
+          },
+          "sTermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tAgua": {
+            "value": "",
+            "valor1": 26
+          },
+          "uvMax": {
+            "value": "",
+            "valor1": 10
+          },
+          "fecha": 20260701,
+          "tmaxima": {
+            "value": "",
+            "valor1": 31
+          },
+          "stermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tagua": {
+            "value": "",
+            "valor1": 26
+          }
+        },
+        {
+          "estadoCielo": {
+            "value": "",
+            "f1": 110,
+            "descripcion1": "nuboso",
+            "f2": 100,
+            "descripcion2": "despejado"
+          },
+          "viento": {
+            "value": "",
+            "f1": 210,
+            "descripcion1": "flojo",
+            "f2": 210,
+            "descripcion2": "flojo"
+          },
+          "oleaje": {
+            "value": "",
+            "f1": 310,
+            "descripcion1": "débil",
+            "f2": 320,
+            "descripcion2": "moderado"
+          },
+          "tMaxima": {
+            "value": "",
+            "valor1": 30
+          },
+          "sTermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tAgua": {
+            "value": "",
+            "valor1": 27
+          },
+          "uvMax": {
+            "value": "",
+            "valor1": 10
+          },
+          "fecha": 20260702,
+          "tmaxima": {
+            "value": "",
+            "valor1": 30
+          },
+          "stermica": {
+            "value": "",
+            "valor1": 470,
+            "descripcion1": "calor moderado"
+          },
+          "tagua": {
+            "value": "",
+            "valor1": 27
+          }
+        }
+      ]
+    },
+    "id": 301101
+  }
+]

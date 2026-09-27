@@ -1,0 +1,98 @@
+[
+  {
+    "origen": {
+      "productor": "Agencia Estatal de Meteorología - AEMET - Gobierno de España",
+      "web": "http://www.aemet.es",
+      "tipo": "Predicción de montaña",
+      "language": "es",
+      "copyright": "© AEMET. Autorizado el uso de la información y su reproducción citando a AEMET como autora de la misma.",
+      "notaLegal": "http://www.aemet.es/es/nota_legal"
+    },
+    "seccion": [
+      {
+        "apartado": [
+          {
+            "cabecera": "Estado del cielo",
+            "texto": "Poco nuboso o despejado durante la mañana. Por la tarde, nubosidad de evolución diurna.",
+            "nombre": "nubosidad"
+          },
+          {
+            "cabecera": "Precipitaciones",
+            "texto": "No se descarta algún chubasco durante las horas vespertinas.",
+            "nombre": "pcp"
+          },
+          {
+            "cabecera": "Tormentas",
+            "texto": "Podrán acompañar a los chubascos en caso de producirse.",
+            "nombre": "tormentas"
+          },
+          {
+            "cabecera": "Temperaturas",
+            "texto": "Con pocos cambios.",
+            "nombre": "temperatura"
+          },
+          {
+            "cabecera": "Viento",
+            "texto": "Soplarán vientos flojos o moderados del norte y nordeste.",
+            "nombre": "viento"
+          }
+        ],
+        "lugar": [],
+        "parrafo": [],
+        "nombre": "prediccion"
+      },
+      {
+        "apartado": [
+          {
+            "cabecera": "Altitud de la isoterma de 0 ºC en la atmósfera libre",
+            "texto": "4.400 m",
+            "nombre": "isocero"
+          },
+          {
+            "cabecera": "Altitud de la isoterma de -10 ºC en la atmósfera libre",
+            "texto": "6.000 m",
+            "nombre": "iso10"
+          },
+          {
+            "cabecera": "Viento en atmósfera libre a 1500 metros",
+            "texto": "NE 20 km/h",
+            "nombre": "v1500"
+          },
+          {
+            "cabecera": "Viento en atmósfera libre a 3000 metros",
+            "texto": "NE 30 km/h",
+            "nombre": "v3000"
+          }
+        ],
+        "lugar": [],
+        "parrafo": [],
+        "nombre": "atmosferalibre"
+      },
+      {
+        "apartado": [],
+        "lugar": [
+          {
+            "minima": 15,
+            "stminima": 15,
+            "maxima": 21,
+            "stmaxima": 21,
+            "nombre": "Pradollano",
+            "altitud": "2165 m"
+          },
+          {
+            "minima": 11,
+            "stminima": 11,
+            "maxima": 16,
+            "stmaxima": 16,
+            "nombre": "Borreguiles",
+            "altitud": "2665 m"
+          }
+        ],
+        "parrafo": [],
+        "nombre": "sensacion_termica"
+      }
+    ],
+    "id": "nev1",
+    "nombre": "Predicción"
+  }
+]

@@ -1,0 +1,75 @@
+[
+  {
+    "origen": {
+      "productor": "Agencia Estatal de Meteorología - AEMET - Gobierno de España",
+      "web": " http://www.aemet.es",
+      "language": "es",
+      "copyright": "© AEMET. Autorizado el uso de la información y su reproducción citando a AEMET como autora de la misma.",
+      "notaLegal": "http://www.aemet.es/es/nota_legal",
+      "elaborado": "2026-06-30T20:00:00",
+      "inicio": "2026-06-30T20:00:00",
+      "fin": "2026-07-01T20:00:00"
+    },
+    "aviso": {
+      "inicio": "2026-06-30T20:00:00",
+      "fin": "2026-07-01T20:00:00",
+      "texto": "En aguas costeras de Girona, N 7 desde la madrugada.",
+      "id": "A806",
+      "nombre": "Avisos para Cataluña"
+    },
+    "situacion": {
+      "analisis": "2026-06-30T12:00:00",
+      "inicio": "2026-06-30T20:00:00",
+      "fin": "2026-07-01T20:00:00",
+      "texto": "Formación de una baja de 1010 en Liguria desplazándose al sur de Italia. Altas presiones de 1030 al nordeste de Azores que se extienden en cuña de 1018 al Mediterráneo Occidental.",
+      "id": "S806",
+      "nombre": "Situación General Cataluña"
+    },
+    "prediccion": {
+      "inicio": "2026-06-30T20:00:00",
+      "fin": "2026-07-01T20:00:00",
+      "zona": [
+        {
+          "subzona": [
+            {
+              "texto": " Norte de Girona: S y SW 3 a 4 arreciando a N 5 a 7 durante la noche. Rachas. Marejadilla a marejada aumentando a fuerte marejada. \r\n Sur de Girona: SW 3 a 4 rolando a N y NE 3 a 5 de madrugada. Marejadilla con áreas de marejada a partir de la mañana. Mar de fondo del NE de 1 m a partir de la mañana.",
+              "id": 8091710,
+              "nombre": "Aguas costeras de Girona"
+            }
+          ],
+          "id": 8091710,
+          "nombre": "Aguas costeras de Girona"
+        },
+        {
+          "subzona": [
+            {
+              "texto": "Componente S 3 a 4 predominando el SW y temporalmente variable 2 a 3 de madrugada. Marejadilla.",
+              "id": 8090810,
+              "nombre": "Aguas costeras de Barcelona"
+            }
+          ],
+          "id": 8090810,
+          "nombre": "Aguas costeras de Barcelona"
+        },
+        {
+          "subzona": [
+            {
+              "texto": "S y SW 3 a 4 arreciando a NW 4 a 6 de madrugada, amainando a componente W 3 a 4 a media mañana y tendiendo a SW por la tarde. Marejadilla temporalmente marejada.",
+              "id": 8094310,
+              "nombre": "Aguas costeras de Tarragona"
+            }
+          ],
+          "id": 8094310,
+          "nombre": "Aguas costeras de Tarragona"
+        }
+      ]
+    },
+    "tendencia": {
+      "inicio": "2026-07-01T20:00:00",
+      "fin": "2026-07-02T20:00:00",
+      "texto": "Se esperan condiciones de aviso en: Aguas costeras de Girona"
+    },
+    "id": "FQXX45",
+    "nombre": "Boletí­n meteorológico y marino para las zonas costeras de la Comunidad Autónoma de Cataluña"
+  }
+]

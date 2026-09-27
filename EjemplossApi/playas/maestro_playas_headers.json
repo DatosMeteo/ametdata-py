@@ -1,0 +1,23 @@
+{
+  "delimiter": ";",
+  "headers": [
+    "ID_PLAYA",
+    "NOMBRE_PLAYA",
+    "ID_PROVINCIA",
+    "NOMBRE_PROVINCIA",
+    "ID_MUNICIPIO",
+    "NOMBRE_MUNICIPIO",
+    "LATITUD",
+    "LONGITUD"
+  ],
+  "primera_fila_datos": [
+    "0301101",
+    "Raco de l'Albir",
+    "03",
+    "Alacant/Alicante",
+    "03011",
+    "l'Alfàs del Pi",
+    "38º 34' 31\"",
+    "-00º 03' 52\""
+  ]
+}
